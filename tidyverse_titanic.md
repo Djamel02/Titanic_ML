@@ -1,7 +1,7 @@
 Main
 ================
 
-# Data Preparation
+## Data Preparation
 
 ``` r
 library(tidyverse)
@@ -143,3 +143,84 @@ summarise(train, SurvivalRate= sum(Survived)/nrow(train)*100)
 
     ##   SurvivalRate
     ## 1     38.63636
+
+The survival rate among the train set was only 38.63%. If we didn’t have
+any information whatsoever about individual passengers then we could
+guess that they all died and be correct 61.37% of the time for the train
+data. Let’s use this naive approach to make a prediction for the test
+data (setting Survived to 0 for everyone) and see what happens when we
+submit it :
+
+``` r
+baseline_solution <- data.frame(PassengerID = test$PassengerId, Survived = 0)
+# To submit this as an entry, just un-comment the next line and submit the .csv file 
+# write.csv(baseline_solution, file = 'baseline_model.csv', row.names = F) 
+```
+
+So now that we at least have an idea of a minimum target to beat, let’s
+collect all the data together using a full\_join() (from dplyr) and get
+to work on it.
+
+``` r
+titanic <- full_join(train, test)
+```
+
+    ## Joining, by = c("X", "PassengerId", "Survived", "Sex", "Age", "Fare", "Pclass_1", "Pclass_2", "Pclass_3", "Family_size", "Title_1", "Title_2", "Title_3", "Title_4", "Emb_1", "Emb_2", "Emb_3")
+
+``` r
+glimpse(titanic)
+```
+
+    ## Rows: 891
+    ## Columns: 17
+    ## $ X           <int> 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, …
+    ## $ PassengerId <int> 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17,…
+    ## $ Survived    <int> 0, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 1, 0, 1, 0, 1…
+    ## $ Sex         <int> 1, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0…
+    ## $ Age         <dbl> 0.2750, 0.4750, 0.3250, 0.4375, 0.4375, 0.3500, 0.6750, 0.…
+    ## $ Fare        <dbl> 0.01415106, 0.13913574, 0.01546857, 0.10364430, 0.01571255…
+    ## $ Pclass_1    <int> 0, 1, 0, 1, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0…
+    ## $ Pclass_2    <int> 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0…
+    ## $ Pclass_3    <int> 1, 0, 1, 0, 1, 1, 0, 1, 1, 0, 1, 0, 1, 1, 1, 0, 1, 0, 1, 1…
+    ## $ Family_size <dbl> 0.1, 0.1, 0.0, 0.1, 0.0, 0.0, 0.0, 0.4, 0.2, 0.1, 0.2, 0.0…
+    ## $ Title_1     <int> 1, 1, 0, 1, 1, 1, 1, 0, 1, 1, 0, 0, 1, 1, 0, 1, 0, 1, 1, 1…
+    ## $ Title_2     <int> 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0…
+    ## $ Title_3     <int> 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0…
+    ## $ Title_4     <int> 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 1, 0, 0, 0, 0, 0…
+    ## $ Emb_1       <int> 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1…
+    ## $ Emb_2       <int> 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0…
+    ## $ Emb_3       <int> 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 0, 1, 1, 0…
+
+The Survived variable is binary, either someone died or survived. Let’s
+make it a factor and give it each level a name so that it is more
+“readable”. Here we use another useful package that is supplied with
+tidyverse, forcats, which (as the name suggests!) is specifically
+designed for manipulation of categorical data.
+
+``` r
+library(forcats)
+titanic <- titanic %>%
+  mutate(Survived = factor(Survived)) %>%
+  mutate(Survived = fct_recode(Survived, "No" = "0", "Yes" = "1"))
+```
+
+### Feature Engineering
+
+Let’s start by recoding Sex to a factor and tidying up the labels. Then
+we’ll add a proportional bar plot to examine survival rate by gender.
+
+``` r
+titanic <- titanic %>% 
+  mutate(Sex = factor(Sex)) %>% 
+  mutate(Sex = fct_recode(Sex,  "Female" = "0", "Male" = "1"))
+```
+
+``` r
+ggplot(titanic[1:891,], aes(Sex, fill = Survived)) +
+  geom_bar(position = "fill")+
+  ylab("Survival Rate")+
+  geom_hline(yintercept = (sum(train$Survived)/nrow(train)), col="white", lty = 2)+
+  ggtitle("Survival Rate by gender")
+```
+
+![](tidyverse_titanic_files/figure-gfm/unnamed-chunk-10-1.png)<!-- -->
