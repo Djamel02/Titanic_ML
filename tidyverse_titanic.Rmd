@@ -1,0 +1,42 @@
+---
+title: "Main"
+output: github_document
+---
+
+# Data Preparation
+```{r dataPreparation}
+library(tidyverse)
+
+train <- read.csv('train_data.csv')
+test <- read.csv('test_data.csv')
+class(train)
+```
+dplyr contains the glimpse function that enables us to take a quick look at the data.
+```{r }
+glimpse(train)
+```
+glimpse() tells us how many observations and variables there in the dataset, and also provides the class of each variable and the first few observations of each variable. It’s somewhat analogous to the str() function in base R.
+```{r}
+glimpse(test)
+```
+
+
+
+As already mentioned, we can still run standard base R functions , such as if we would like a summary of the train and test data:
+```{r}
+summary(train)
+```
+
+Let’s just quickly check that all the column names are the same,
+
+```{r}
+setdiff(names(train), names(test))
+```
+The first obvious question is: What proportion of people survived? Here we can use the summarise() (or summarize!) function from dplyr to do a quick calculation.
+
+```{r}
+summarise(train, SurvivalRate= sum(Survived)/nrow(train)*100)
+```
+
+
+
